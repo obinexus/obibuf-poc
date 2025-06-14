@@ -1,0 +1,7 @@
+[2025-06-14 23:56:01] [INFO] [DRY-RUN] Starting OBIBUF feature setup (DRY-RUN) for: protocol-state-validation
+[2025-06-14 23:56:01] [INFO] [DRY-RUN] DRY-RUN MODE: No actual changes will be made
+[2025-06-14 23:56:01] [INFO] [DRY-RUN] Script version: 1.1.0
+[2025-06-14 23:56:01] [INFO] [DRY-RUN] Working directory: /mnt/c/Users/OBINexus/Projects/github/obibuf-poc
+[2025-06-14 23:56:01] [INFO] [DRY-RUN] Validating environment prerequisites...
+[2025-06-14 23:56:01] [ERROR] [DRY-RUN] Required directory 'obiprotocol' not found
+[2025-06-14 23:56:01] [ERROR] [DRY-RUN] Please ensure OBIBUF stack directories are present
