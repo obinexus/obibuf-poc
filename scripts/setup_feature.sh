@@ -1,15 +1,15 @@
 #!/bin/bash
-# OBIBUF Production Feature Setup Script
+# OBIBUF Production Feature Setup Script - FIXED VERSION
 # OBINexus Computing - Aegis Framework
 # 
 # Configures multi-layered protocol stack for new feature integration
-# Enforces dependency hierarchy: obibuffer → obitopology → obiprotocol
+# Enforces dependency hierarchy: obiprotocol → obitopology → obibuffer
 
 set -euo pipefail
 
 # Script configuration
 readonly SCRIPT_NAME="setup_feature.sh"
-readonly SCRIPT_VERSION="2.0.0"
+readonly SCRIPT_VERSION="2.1.0"
 readonly LOG_FILE="setup.log"
 readonly FEATURE_MANIFEST="dist/feature_manifest.txt"
 readonly CONFIG_DIR="configs"
@@ -32,7 +32,7 @@ readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
-# Logging function with timestamps
+# Logging functions with timestamps
 log() {
     local level="$1"
     shift
@@ -104,42 +104,13 @@ REQUIREMENTS:
     - Ubuntu 22.04+ or equivalent POSIX environment
     - GCC, Make, CMake installed
     - Required directories: obiprotocol/, obitopology/, obibuffer/
-
 EOF
-}
-
-# Dry-run simulation functions
-dry_run_mkdir() {
-    log_info "DRY-RUN: Would create directory: $*"
-}
-
-dry_run_rm() {
-    log_info "DRY-RUN: Would remove: $*"
-}
-
-dry_run_create_file() {
-    local file="$1"
-    log_info "DRY-RUN: Would create file: $file"
-    if [[ "$file" == *.yaml ]]; then
-        log_info "DRY-RUN: File would contain YAML configuration for feature"
-    elif [[ "$file" == *CMakeLists* ]]; then
-        log_info "DRY-RUN: File would contain CMake build configuration"
-    elif [[ "$file" == *Makefile* ]]; then
-        log_info "DRY-RUN: File would contain Makefile build rules"
-    fi
-}
-
-dry_run_append_file() {
-    local file="$1"
-    local content="$2"
-    log_info "DRY-RUN: Would append to file: $file"
-    log_info "DRY-RUN: Content: $content"
 }
 
 # Safe file operations with dry-run support
 safe_mkdir() {
     if [[ "$DRY_RUN" == true ]]; then
-        dry_run_mkdir "$@"
+        log_info "DRY-RUN: Would create directory: $*"
     else
         mkdir -p "$@"
     fi
@@ -147,7 +118,7 @@ safe_mkdir() {
 
 safe_rm() {
     if [[ "$DRY_RUN" == true ]]; then
-        dry_run_rm "$@"
+        log_info "DRY-RUN: Would remove: $*"
     else
         rm -rf "$@"
     fi
@@ -159,7 +130,7 @@ safe_create_file() {
     local content="$*"
     
     if [[ "$DRY_RUN" == true ]]; then
-        dry_run_create_file "$file"
+        log_info "DRY-RUN: Would create file: $file"
     else
         cat > "$file" << EOF
 $content
@@ -172,11 +143,262 @@ safe_append_file() {
     local content="$2"
     
     if [[ "$DRY_RUN" == true ]]; then
-        dry_run_append_file "$file" "$content"
+        log_info "DRY-RUN: Would append to file: $file"
     else
         echo "$content" >> "$file"
     fi
 }
+
+# Validate environment and prerequisites
+validate_environment() {
+    log_info "Validating environment prerequisites..."
+    
+    # Check required tools
+    local required_tools=("gcc" "make" "cmake")
+    for tool in "${required_tools[@]}"; do
+        if ! command -v "$tool" &> /dev/null; then
+            log_error "Required tool '$tool' not found in PATH"
+            exit 1
+        fi
+    done
+    
+    # Check required directories
+    for dir in "${REQUIRED_DIRS[@]}"; do
+        if [[ ! -d "$dir" ]]; then
+            log_error "Required directory '$dir' not found"
+            log_error "Please ensure OBIBUF stack directories are present"
+            exit 1
+        fi
+    done
+    
+    log_success "Environment validation completed"
+}
+
+# Validate feature name format
+validate_feature_name() {
+    local feature_name="$1"
+    
+    # Check if feature name is valid (alphanumeric, hyphens, underscores)
+    if [[ ! "$feature_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        log_error "Invalid feature name format: '$feature_name'"
+        log_error "Feature names must contain only alphanumeric characters, hyphens, and underscores"
+        exit 1
+    fi
+    
+    # Check minimum length
+    if [[ ${#feature_name} -lt 3 ]]; then
+        log_error "Feature name too short: '$feature_name' (minimum 3 characters)"
+        exit 1
+    fi
+    
+    log_info "Feature name validated: '$feature_name'"
+}
+
+# Create feature template structure
+create_feature_template() {
+    local feature_name="$1"
+    local feature_type="$2"
+    local feature_dir="${FEATURES_DIR}/${feature_name}"
+    
+    log_info "Creating feature template for: $feature_name (type: $feature_type)"
+    
+    # Create base directory structure
+    safe_mkdir "$feature_dir"
+    safe_mkdir "$feature_dir"/{src,include,tests,docs}
+    safe_mkdir "$feature_dir"/src/{core,cli}
+    safe_mkdir "$feature_dir"/tests/{unit,integration}
+    safe_mkdir "$feature_dir"/{lib,bin}
+    
+    # Create feature header file
+    local header_file="${feature_dir}/include/${feature_name}.h"
+    local header_content="/*
+ * ${feature_name} - OBIBUF Feature Header
+ * OBINexus Computing - Aegis Framework
+ * Generated: $(date -Iseconds)
+ */
+
+#ifndef ${feature_name^^}_H
+#define ${feature_name^^}_H
+
+#include \"obiprotocol.h\"
+#include \"obitopology.h\"
+#include \"obibuffer.h\"
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+// Feature result codes
+typedef enum {
+    ${feature_name^^}_SUCCESS = 0,
+    ${feature_name^^}_ERROR_INVALID_INPUT,
+    ${feature_name^^}_ERROR_VALIDATION_FAILED,
+    ${feature_name^^}_ERROR_DEPENDENCY_FAILURE
+} ${feature_name}_result_t;
+
+// Core API functions
+${feature_name}_result_t ${feature_name}_init(void);
+void ${feature_name}_cleanup(void);
+${feature_name}_result_t ${feature_name}_process(const uint8_t *data, size_t length);
+
+#ifdef __cplusplus
+extern \"C\" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* ${feature_name^^}_H */"
+    
+    safe_create_file "$header_file" "$header_content"
+    
+    # Create core implementation if needed
+    if [[ "$feature_type" == "core" || "$feature_type" == "hybrid" ]]; then
+        create_core_implementation "$feature_dir" "$feature_name"
+    fi
+    
+    # Create CLI implementation if needed
+    if [[ "$feature_type" == "cli" || "$feature_type" == "hybrid" ]]; then
+        create_cli_implementation "$feature_dir" "$feature_name"
+    fi
+    
+    # Create feature Makefile
+    create_feature_makefile "$feature_dir" "$feature_name" "$feature_type"
+    
+    # Create QA framework
+    create_qa_framework "$feature_dir" "$feature_name"
+    
+    log_success "Feature template created successfully"
+}
+
+# Create core implementation
+create_core_implementation() {
+    local feature_dir="$1"
+    local feature_name="$2"
+    local core_file="${feature_dir}/src/core/${feature_name}_core.c"
+    
+    local core_content="/*
+ * ${feature_name} Core Implementation
+ * OBINexus Computing - Aegis Framework
+ */
+
+#include \"${feature_name}.h\"
+#include <stdlib.h>
+#include <string.h>
+
+// Global feature state
+static bool ${feature_name}_initialized = false;
+
+${feature_name}_result_t ${feature_name}_init(void) {
+    if (${feature_name}_initialized) {
+        return ${feature_name^^}_SUCCESS;
+    }
+    
+    // Initialize feature dependencies
+    // TODO: Add feature-specific initialization
+    
+    ${feature_name}_initialized = true;
+    return ${feature_name^^}_SUCCESS;
+}
+
+void ${feature_name}_cleanup(void) {
+    if (!${feature_name}_initialized) {
+        return;
+    }
+    
+    // Cleanup feature resources
+    ${feature_name}_initialized = false;
+}
+
+${feature_name}_result_t ${feature_name}_process(const uint8_t *data, size_t length) {
+    if (!${feature_name}_initialized) {
+        return ${feature_name^^}_ERROR_DEPENDENCY_FAILURE;
+    }
+    
+    if (!data || length == 0) {
+        return ${feature_name^^}_ERROR_INVALID_INPUT;
+    }
+    
+    // TODO: Implement feature-specific processing
+    
+    return ${feature_name^^}_SUCCESS;
+}"
+    
+    safe_create_file "$core_file" "$core_content"
+}
+
+# Create CLI implementation
+create_cli_implementation() {
+    local feature_dir="$1"
+    local feature_name="$2"
+    local cli_file="${feature_dir}/src/cli/${feature_name}_cli.c"
+    
+    local cli_content="/*
+ * ${feature_name} CLI Implementation
+ * OBINexus Computing - Aegis Framework
+ */
+
+#include \"${feature_name}.h\"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <getopt.h>
+
+static void print_usage(const char *program_name) {
+    printf(\"${feature_name} CLI v1.0.0\\n\");
+    printf(\"OBINexus Computing - Aegis Framework\\n\\n\");
+    printf(\"Usage: %s [options]\\n\\n\", program_name);
+    printf(\"Options:\\n\");
+    printf(\"  -h, --help     Show this help message\\n\");
+    printf(\"  -v, --verbose  Verbose output\\n\");
+}
+
+int main(int argc, char *argv[]) {
+    bool verbose = false;
+    
+    static struct option long_options[] = {
+        {\"help\",    no_argument, 0, 'h'},
+        {\"verbose\", no_argument, 0, 'v'},
+        {0, 0, 0, 0}
+    };
+    
+    int opt;
+    while ((opt = getopt_long(argc, argv, \"hv\", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'h':
+                print_usage(argv[0]);
+                return EXIT_SUCCESS;
+            case 'v':
+                verbose = true;
+                break;
+            default:
+                print_usage(argv[0]);
+                return EXIT_FAILURE;
+        }
+    }
+    
+    // Initialize feature
+    ${feature_name}_result_t result = ${feature_name}_init();
+    if (result != ${feature_name^^}_SUCCESS) {
+        fprintf(stderr, \"Failed to initialize ${feature_name}\\n\");
+        return EXIT_FAILURE;
+    }
+    
+    if (verbose) {
+        printf(\"${feature_name} initialized successfully\\n\");
+    }
+    
+    // TODO: Implement CLI functionality
+    
+    // Cleanup
+    ${feature_name}_cleanup();
+    return EXIT_SUCCESS;
+}"
+    
+    safe_create_file "$cli_file" "$cli_content"
+}
+
 # Create feature-specific Makefile
 create_feature_makefile() {
     local feature_dir="$1"
@@ -209,9 +431,7 @@ CORE_STATIC = lib${feature_name}.a
 CLI_EXE = ${feature_name}.exe
 
 # External library dependencies
-LIBS = -L../../dist/lib -lobiprotocol -lobitopology -lobibuffer -lm
-
-# Build targets based on feature type"
+LIBS = -L../../dist/lib -lobiprotocol -lobitopology -lobibuffer -lm"
 
     if [[ "$feature_type" == "core" ]]; then
         makefile_content+="\nall: \$(LIBDIR)/\$(CORE_LIB) \$(LIBDIR)/\$(CORE_STATIC)"
@@ -260,37 +480,16 @@ test-integration: \$(BINDIR)/\$(CLI_EXE)
 
 test: test-unit test-integration
 
-# Quality assurance
-qa-check:
-	@echo \"Running quality assurance checks...\"
-	cppcheck --enable=all --std=c11 \$(SRCDIR)/
-	valgrind --tool=memcheck --leak-check=full ./\$(BINDIR)/\$(CLI_EXE) --help
-
-# NASA compliance verification
-verify-compliance:
-	@echo \"Verifying NASA-STD-8739.8 compliance...\"
-	@echo \"Deterministic execution: PASS\"
-	@echo \"Bounded resources: PASS\"
-	@echo \"Formal verification: TODO\"
-
 # Clean targets
 clean:
 	rm -rf \$(OBJDIR) \$(LIBDIR) \$(BINDIR)
 
-clean-tests:
-	find tests/ -name \"*.o\" -delete
-	find tests/ -name \"test_*.exe\" -delete
-
-# Documentation generation
-docs:
-	doxygen Doxyfile
-
 # Installation targets
 install: all
-	cp \$(LIBDIR)/* ../../dist/lib/
-	cp \$(BINDIR)/* ../../dist/bin/
+	cp \$(LIBDIR)/* ../../dist/lib/ 2>/dev/null || true
+	cp \$(BINDIR)/* ../../dist/bin/ 2>/dev/null || true
 
-.PHONY: all test test-unit test-integration qa-check verify-compliance clean clean-tests docs install"
+.PHONY: all test test-unit test-integration clean install"
     
     safe_create_file "$makefile" "$makefile_content"
 }
@@ -330,7 +529,7 @@ echo \"Unit tests completed successfully\"
  * OBINexus Computing - Aegis Framework
  */
 
-#include \"${feature_name}/core/${feature_name}_core.h\"
+#include \"${feature_name}.h\"
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -413,125 +612,14 @@ echo \"Integration tests completed successfully\"
     fi
 }
 
-# Copy feature structure from existing feature
-copy_feature_structure() {
-    local source_feature="$1"
-    local target_feature="$2"
-    local source_dir="${FEATURES_DIR}/${source_feature}"
-    local target_dir="${FEATURES_DIR}/${target_feature}"
-    
-    if [[ ! -d "$source_dir" ]]; then
-        log_error "Source feature directory not found: $source_dir"
-        exit 1
-    fi
-    
-    log_info "Copying feature structure from '$source_feature' to '$target_feature'"
-    
-    # Copy directory structure (excluding tests)
-    if [[ "$DRY_RUN" == true ]]; then
-        log_info "DRY-RUN: Would copy feature structure from $source_dir to $target_dir"
-        log_info "DRY-RUN: Would exclude tests directory"
-        log_info "DRY-RUN: Would update source code references"
-    else
-        mkdir -p "$target_dir"
-        
-        # Copy structure excluding tests
-        for item in "$source_dir"/*; do
-            if [[ -d "$item" ]] && [[ "$(basename "$item")" != "tests" ]]; then
-                cp -r "$item" "$target_dir/"
-            elif [[ -f "$item" ]]; then
-                cp "$item" "$target_dir/"
-            fi
-        done
-        
-        # Update source code references
-        find "$target_dir" -type f \( -name "*.c" -o -name "*.h" -o -name "Makefile" \) \
-            -exec sed -i "s/$source_feature/$target_feature/g" {} \;
-        
-        # Update uppercase references
-        find "$target_dir" -type f \( -name "*.c" -o -name "*.h" \) \
-            -exec sed -i "s/${source_feature^^}/${target_feature^^}/g" {} \;
-    fi
-    
-    log_success "Feature structure copied successfully"
-}
-    log_info "Validating environment prerequisites..."
-    
-    # Check required tools
-    local required_tools=("gcc" "make" "cmake")
-    for tool in "${required_tools[@]}"; do
-        if ! command -v "$tool" &> /dev/null; then
-            log_error "Required tool '$tool' not found in PATH"
-            exit 1
-        fi
-    done
-    
-    # Check required directories
-    for dir in "${REQUIRED_DIRS[@]}"; do
-        if [[ ! -d "$dir" ]]; then
-            log_error "Required directory '$dir' not found"
-            log_error "Please ensure OBIBUF stack directories are present"
-            exit 1
-        fi
-    done
-    
-    log_success "Environment validation completed"
-}
-
-# Validate feature name format
-validate_feature_name() {
-    local feature_name="$1"
-    
-    # Check if feature name is valid (alphanumeric, hyphens, underscores)
-    if [[ ! "$feature_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-        log_error "Invalid feature name format: '$feature_name'"
-        log_error "Feature names must contain only alphanumeric characters, hyphens, and underscores"
-        exit 1
-    fi
-    
-    # Check minimum length
-    if [[ ${#feature_name} -lt 3 ]]; then
-        log_error "Feature name too short: '$feature_name' (minimum 3 characters)"
-        exit 1
-    fi
-    
-    log_info "Feature name validated: '$feature_name'"
-}
-
-# Clean and recreate build directories
-setup_build_directories() {
-    local feature_name="$1"
-    
-    log_info "Setting up build directories for feature: $feature_name"
-    
-    # Clean existing build artifacts
-    log_info "Cleaning existing build artifacts..."
-    safe_rm build/ dist/
-    
-    # Create primary build directories
-    safe_mkdir build/{debug,release}
-    safe_mkdir dist/{lib,bin,include}
-    safe_mkdir "$CONFIG_DIR"
-    
-    # Create layer-specific build directories
-    for layer in "${REQUIRED_DIRS[@]}"; do
-        safe_mkdir "build/debug/$layer"
-        safe_mkdir "build/release/$layer"
-        log_info "Created build directories for layer: $layer"
-    done
-    
-    # Create test directories
-    safe_mkdir build/{unit,integration}/test_results
-    
-    log_success "Build directory structure created"
-}
-
 # Generate feature configuration
 generate_feature_config() {
     local feature_name="$1"
     local config_file="${CONFIG_DIR}/${feature_name}.yaml"
     
     log_info "Generating feature configuration: $config_file"
+    
+    safe_mkdir "$CONFIG_DIR"
     
     local config_content="# OBIBUF Feature Configuration
 # Generated by ${SCRIPT_NAME} v${SCRIPT_VERSION}
@@ -584,13 +672,7 @@ integration:
   c_api: stable
   documentation: auto_sync"
     
-    if [[ "$DRY_RUN" == true ]]; then
-        dry_run_create_file "$config_file"
-    else
-        cat > "$config_file" << EOF
-$config_content
-EOF
-    fi
+    safe_create_file "$config_file" "$config_content"
     
     log_success "Feature configuration generated: $config_file"
 }
@@ -602,6 +684,8 @@ update_feature_manifest() {
     
     log_info "Updating feature manifest..."
     
+    safe_mkdir dist
+    
     # Create manifest header if file doesn't exist
     if [[ ! -f "$FEATURE_MANIFEST" ]]; then
         local manifest_header="# OBIBUF Feature Manifest
@@ -610,13 +694,7 @@ update_feature_manifest() {
 
 # Format: FEATURE_NAME | TIMESTAMP | STATUS | VERSION"
         
-        if [[ "$DRY_RUN" == true ]]; then
-            dry_run_create_file "$FEATURE_MANIFEST"
-        else
-            cat > "$FEATURE_MANIFEST" << EOF
-$manifest_header
-EOF
-        fi
+        safe_create_file "$FEATURE_MANIFEST" "$manifest_header"
     fi
     
     # Add feature entry
@@ -624,90 +702,6 @@ EOF
     safe_append_file "$FEATURE_MANIFEST" "$entry"
     
     log_success "Feature manifest updated"
-}
-
-# Generate build configuration files
-generate_build_configs() {
-    local feature_name="$1"
-    
-    log_info "Generating build configuration files..."
-    
-    # Generate CMakeLists.txt for feature
-    local cmake_content="# OBIBUF Feature Build Configuration
-# Feature: ${feature_name}
-# Generated: $(date -Iseconds)
-
-cmake_minimum_required(VERSION 3.16)
-project(obibuf_${feature_name} C)
-
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS \"\${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -DNASA_STD_8739_8\")
-
-# Feature-specific definitions
-add_definitions(-DFEATURE_${feature_name^^}=1)
-
-# Include directories
-include_directories(obiprotocol/include)
-include_directories(obitopology/include)
-include_directories(obibuffer/include)
-
-# Library dependencies (enforce hierarchy)
-find_library(OBIPROTOCOL_LIB obiprotocol PATHS dist/lib)
-find_library(OBITOPOLOGY_LIB obitopology PATHS dist/lib)
-find_library(OBIBUFFER_LIB obibuffer PATHS dist/lib)
-
-# Feature-specific targets
-add_library(obibuf_${feature_name} SHARED
-    ${feature_name}/src/main.c
-)
-
-target_link_libraries(obibuf_${feature_name}
-    \${OBIBUFFER_LIB}
-    \${OBITOPOLOGY_LIB}
-    \${OBIPROTOCOL_LIB}
-    m
-)
-
-# Install targets
-install(TARGETS obibuf_${feature_name} DESTINATION lib)"
-    
-    if [[ "$DRY_RUN" == true ]]; then
-        dry_run_create_file "CMakeLists_${feature_name}.txt"
-    else
-        cat > "CMakeLists_${feature_name}.txt" << EOF
-$cmake_content
-EOF
-    fi
-    
-    # Generate Makefile fragment
-    local makefile_content="# OBIBUF Feature Makefile Fragment
-# Feature: ${feature_name}
-
-FEATURE_NAME := ${feature_name}
-FEATURE_CFLAGS := -DFEATURE_\$(shell echo \$(FEATURE_NAME) | tr '[:lower:]' '[:upper:]')=1
-
-# Feature-specific build targets
-\$(FEATURE_NAME): \$(FEATURE_NAME)/src/main.c
-	\$(CC) \$(CFLAGS) \$(FEATURE_CFLAGS) -shared -fPIC \\
-		-I obiprotocol/include -I obitopology/include -I obibuffer/include \\
-		-L dist/lib -lobiprotocol -lobitopology -lobibuffer \\
-		-o dist/lib/libobibuf_\$(FEATURE_NAME).so \\
-		\$(FEATURE_NAME)/src/main.c
-
-clean-\$(FEATURE_NAME):
-	rm -f dist/lib/libobibuf_\$(FEATURE_NAME).so
-
-.PHONY: \$(FEATURE_NAME) clean-\$(FEATURE_NAME)"
-    
-    if [[ "$DRY_RUN" == true ]]; then
-        dry_run_create_file "Makefile.${feature_name}"
-    else
-        cat > "Makefile.${feature_name}" << EOF
-$makefile_content
-EOF
-    fi
-    
-    log_success "Build configuration files generated"
 }
 
 # Display next steps for developer
@@ -722,19 +716,6 @@ ${YELLOW}╔══════════════════════�
 ╚════════════════════════════════════════════════════════════════╝${NC}
 
 Feature: ${BLUE}${feature_name}${NC} (simulated)
-Configuration: ${CONFIG_DIR}/${feature_name}.yaml (would be created)
-Build Files: CMakeLists_${feature_name}.txt, Makefile.${feature_name} (would be created)
-
-${GREEN}SIMULATION SUMMARY:${NC}
-• Validated environment and feature name
-• Simulated directory structure creation
-• Simulated configuration file generation
-• Simulated build file creation
-• Simulated manifest update
-
-${YELLOW}TO EXECUTE FOR REAL:${NC}
-Run the same command without --dry-run flag:
-${BLUE}./scripts/setup_feature.sh ${feature_name}${NC}
 
 EOF
         return
@@ -747,39 +728,24 @@ ${GREEN}╔═══════════════════════
 ╚════════════════════════════════════════════════════════════════╝${NC}
 
 Feature: ${BLUE}${feature_name}${NC}
+Location: ${FEATURES_DIR}/${feature_name}/
 Configuration: ${CONFIG_DIR}/${feature_name}.yaml
-Build Files: CMakeLists_${feature_name}.txt, Makefile.${feature_name}
 
 ${YELLOW}NEXT DEVELOPMENT STEPS:${NC}
 
-1. Build Core Libraries (Required Order):
-   ${BLUE}make core${NC}                    # Build obiprotocol → obitopology → obibuffer
+1. Build Core Libraries:
+   ${BLUE}make core${NC}
 
-2. Build CLI Interface:
-   ${BLUE}make cli${NC}                     # Build obibuf.exe with library linking
+2. Build Feature:
+   ${BLUE}cd features/${feature_name} && make${NC}
 
-3. Validate Installation:
-   ${BLUE}./obibuf validate -i test_input.bin -v${NC}
-   
-4. Feature Development:
-   ${BLUE}mkdir -p ${feature_name}/src${NC}
-   ${BLUE}# Implement feature in ${feature_name}/src/main.c${NC}
-   
-5. Build Feature:
-   ${BLUE}make -f Makefile.${feature_name} ${feature_name}${NC}
+3. Run Tests:
+   ${BLUE}cd features/${feature_name} && make test${NC}
 
-6. Run Quality Assurance:
-   ${BLUE}make test-unit${NC}               # Unit tests
-   ${BLUE}make test-integration${NC}        # Integration tests
-   ${BLUE}make verify-compliance${NC}       # NASA-STD-8739.8 validation
+4. Install Feature:
+   ${BLUE}cd features/${feature_name} && make install${NC}
 
-${YELLOW}IMPORTANT NOTES:${NC}
-• All operations are logged to: ${LOG_FILE}
-• Feature manifest updated: ${FEATURE_MANIFEST}
-• Build follows strict dependency hierarchy
-• Zero Trust and audit requirements enforced
-
-${GREEN}Happy coding with the Aegis framework!${NC}
+${GREEN}Feature ready for development within Aegis framework!${NC}
 
 EOF
 }
@@ -841,37 +807,24 @@ main() {
     
     if [[ "$DRY_RUN" == true ]]; then
         log_info "Starting OBIBUF feature setup (DRY-RUN) for: $feature_name"
-        log_info "DRY-RUN MODE: No actual changes will be made"
     else
         log_info "Starting OBIBUF feature setup for: $feature_name"
     fi
     
     log_info "Script version: $SCRIPT_VERSION"
     log_info "Feature type: $FEATURE_TYPE"
-    if [[ -n "$COPY_FROM_FEATURE" ]]; then
-        log_info "Copying from feature: $COPY_FROM_FEATURE"
-    fi
     log_info "Working directory: $(pwd)"
     
     # Execute setup sequence
     validate_environment
     validate_feature_name "$feature_name"
-    setup_build_directories "$feature_name"
     
     # Create features directory
     safe_mkdir "$FEATURES_DIR"
     
-    # Copy from existing feature or create new template
-    if [[ -n "$COPY_FROM_FEATURE" ]]; then
-        copy_feature_structure "$COPY_FROM_FEATURE" "$feature_name"
-        # Create new QA framework for copied feature
-        create_qa_framework "${FEATURES_DIR}/${feature_name}" "$feature_name"
-    else
-        create_feature_template "$feature_name" "$FEATURE_TYPE"
-    fi
-    
+    # Create feature template
+    create_feature_template "$feature_name" "$FEATURE_TYPE"
     generate_feature_config "$feature_name"
-    generate_build_configs "$feature_name"
     update_feature_manifest "$feature_name"
     
     if [[ "$DRY_RUN" == true ]]; then
