@@ -17,10 +17,10 @@ CLI_SOURCE = $(SRCDIR)/obibuf_main.c
 CLI_OBJECT = $(CLI_SOURCE:.c=.o)
 CLI_EXECUTABLE = $(BINDIR)/obibuf.exe
 
-# Prerequisites - ensure all layer libraries exist
-PROTOCOL_LIB = $(LIBDIR)/libobiprotocol.so
-TOPOLOGY_LIB = $(LIBDIR)/libobitopology.so  
-BUFFER_LIB = $(LIBDIR)/libobibuffer.so
+# Prerequisites - ensure all layer libraries exist (OBINexus standard)
+PROTOCOL_LIB = $(LIBDIR)/obiprotocol.so
+TOPOLOGY_LIB = $(LIBDIR)/obitopology.so  
+BUFFER_LIB = $(LIBDIR)/obibuffer.so
 
 # Main targets
 .PHONY: all cli clean install test help check-libs
