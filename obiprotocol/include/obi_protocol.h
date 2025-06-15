@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "obiprotocol_dfa.h"
 
 // Core protocol definitions
 typedef struct obi_protocol_context obi_protocol_context_t;
@@ -28,6 +27,9 @@ typedef enum {
 // Core API functions
 obi_protocol_result_t obi_protocol_init(void);
 void obi_protocol_cleanup(void);
+
+// Include DFA engine definitions after core types are defined
+#include "obiprotocol_dfa.h"
 
 #ifdef __cplusplus
 extern "C" {

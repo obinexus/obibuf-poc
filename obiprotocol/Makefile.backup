@@ -40,24 +40,3 @@ clean:
 	rm -f $(LIBDIR)/$(LIBNAME) $(LIBDIR)/$(STATIC_LIBNAME)
 
 .PHONY: all clean
-
-# DFA Engine Sources (Language-Agnostic Parser)
-DFA_SOURCES = src/core/obi_dfa_implementation.c
-DFA_HEADERS = include/obiprotocol_dfa.h
-
-# Add DFA objects to main build
-SOURCES += $(DFA_SOURCES)
-HEADERS += $(DFA_HEADERS)
-
-# DFA-specific build target
-dfa: $(OBJDIR)/obi_dfa_implementation.o
-
-$(OBJDIR)/obi_dfa_implementation.o: src/core/obi_dfa_implementation.c include/obiprotocol_dfa.h
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
-# Test targets for DFA
-test-dfa: $(LIBDIR)/$(LIBNAME)
-	@echo "Running DFA engine tests..."
-	cd tests/unit && ./test_dfa_engine.sh
-
-.PHONY: dfa test-dfa

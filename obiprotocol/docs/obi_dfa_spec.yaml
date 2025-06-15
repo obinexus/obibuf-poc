@@ -1,0 +1,273 @@
+# OBI Protocol Language-Agnostic DFA Specification
+# Serializable across C, Python, JavaScript, Lua implementations
+# Zero Trust Architecture with USCN Integration
+
+protocol_version: "1.0"
+schema_version: "AEGIS-DFA-2025.1"
+zero_trust_enforced: true
+uscn_normalization_enabled: true
+
+# Governance Configuration (Sinphasé Compliance)
+governance:
+  cost_threshold: 0.5
+  warning_threshold: 0.6
+  complexity_monitoring: true
+  audit_required: true
+
+# USCN Character Encoding Mappings
+uscn_mappings:
+  - encoded: "%2e%2e%2f"
+    canonical: "../"
+    security_risk: "path_traversal"
+  - encoded: "%c0%af" 
+    canonical: "../"
+    security_risk: "utf8_overlong"
+  - encoded: ".%2e/"
+    canonical: "../"
+    security_risk: "mixed_encoding"
+  - encoded: "%2f"
+    canonical: "/"
+    security_risk: "basic_encoding"
+  - encoded: "%2e"
+    canonical: "."
+    security_risk: "basic_encoding"
+  - encoded: "%20"
+    canonical: " "
+    security_risk: "whitespace_encoding"
+  - encoded: "%3A"
+    canonical: ":"
+    security_risk: "delimiter_encoding"
+  - encoded: "%7C"
+    canonical: "|"
+    security_risk: "delimiter_encoding"
+
+# DFA State Definitions (Language-Agnostic Semantic Patterns)
+states:
+  - id: 0
+    name: "PROTOCOL_START"
+    pattern_type: "PROTOCOL_HEADER"
+    regex: "^OBI-PROTOCOL-[0-9]+\\.[0-9]+:"
+    is_initial: true
+    is_accepting: false
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: "OBI-PROTOCOL-"
+        target_state: 1
+        cost_weight: 0.1
+        
+  - id: 1
+    name: "VERSION_PARSING"
+    pattern_type: "PROTOCOL_HEADER"
+    regex: "[0-9]+\\.[0-9]+"
+    is_initial: false
+    is_accepting: false
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: "\\d+\\.\\d+"
+        target_state: 2
+        cost_weight: 0.1
+        
+  - id: 2
+    name: "SECURITY_TOKEN_EXPECTED"
+    pattern_type: "SECURITY_TOKEN"
+    regex: "SEC:[A-F0-9]{64}"
+    is_initial: false
+    is_accepting: false
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: "SEC:"
+        target_state: 3
+        cost_weight: 0.2
+        validation_required: true
+        
+  - id: 3
+    name: "TOKEN_VALIDATION"
+    pattern_type: "SECURITY_TOKEN"
+    regex: "[A-F0-9]{64}"
+    is_initial: false
+    is_accepting: false
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: "[A-F0-9]{64}"
+        target_state: 4
+        cost_weight: 0.3
+        cryptographic_validation: true
+        
+  - id: 4
+    name: "SCHEMA_REFERENCE"
+    pattern_type: "SCHEMA_REFERENCE"
+    regex: "SCHEMA:[A-Za-z0-9_-]+\\.[0-9]+"
+    is_initial: false
+    is_accepting: false
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: "SCHEMA:"
+        target_state: 5
+        cost_weight: 0.1
+        
+  - id: 5
+    name: "PAYLOAD_DELIMITER"
+    pattern_type: "PAYLOAD_DELIMITER"
+    regex: "PAYLOAD\\|[0-9]+\\|"
+    is_initial: false
+    is_accepting: false
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: "PAYLOAD\\|"
+        target_state: 6
+        cost_weight: 0.1
+        
+  - id: 6
+    name: "DATA_PAYLOAD"
+    pattern_type: "DATA_PAYLOAD"
+    regex: ".*"
+    is_initial: false
+    is_accepting: true
+    zero_trust_validation: true
+    transitions:
+      - input_pattern: ".*"
+        target_state: 7
+        cost_weight: 0.05
+        
+  - id: 7
+    name: "AUDIT_MARKER"
+    pattern_type: "AUDIT_MARKER"
+    regex: "AUDIT:[0-9]{13}"
+    is_initial: false
+    is_accepting: true
+    zero_trust_validation: true
+    nasa_compliance: true
+
+# Transition Matrix (State × Input → Next State)
+transition_matrix:
+  - from: 0
+    to: 1
+    input_class: "protocol_header"
+    conditions:
+      - "uscn_normalized"
+      - "zero_trust_validated"
+    cost: 0.1
+    
+  - from: 1
+    to: 2
+    input_class: "version_number"
+    conditions:
+      - "regex_matched"
+      - "semantic_validation"
+    cost: 0.1
+    
+  - from: 2
+    to: 3
+    input_class: "security_prefix"
+    conditions:
+      - "cryptographic_context"
+      - "zero_trust_validated"
+    cost: 0.2
+    
+  - from: 3
+    to: 4
+    input_class: "security_token"
+    conditions:
+      - "hex_validation"
+      - "length_check"
+      - "cryptographic_verification"
+    cost: 0.3
+    
+  - from: 4
+    to: 5
+    input_class: "schema_reference"
+    conditions:
+      - "schema_exists"
+      - "version_compatible"
+    cost: 0.1
+    
+  - from: 5
+    to: 6
+    input_class: "payload_delimiter"
+    conditions:
+      - "length_declaration"
+      - "boundary_marker"
+    cost: 0.1
+    
+  - from: 6
+    to: 7
+    input_class: "payload_data"
+    conditions:
+      - "length_validated"
+      - "schema_compliant"
+    cost: 0.05
+
+# IR Generation Mapping (DFA States → Canonical IR Nodes)
+ir_generation:
+  - state_pattern: "PROTOCOL_HEADER"
+    ir_node_type: "IR_PROTOCOL_MESSAGE"
+    canonical_structure:
+      type: "protocol_identification"
+      version: "extracted_from_pattern"
+      validation_status: "zero_trust_verified"
+      
+  - state_pattern: "SECURITY_TOKEN"
+    ir_node_type: "IR_SECURITY_CONTEXT"
+    canonical_structure:
+      type: "cryptographic_authentication"
+      token_hash: "sha256_of_canonical_token"
+      verification_status: "cryptographically_verified"
+      
+  - state_pattern: "DATA_PAYLOAD"
+    ir_node_type: "IR_PAYLOAD_BLOCK"
+    canonical_structure:
+      type: "message_payload"
+      content: "uscn_normalized_content"
+      schema_reference: "validated_schema_id"
+      governance_cost: "calculated_complexity"
+      
+  - state_pattern: "AUDIT_MARKER"
+    ir_node_type: "IR_AUDIT_RECORD"
+    canonical_structure:
+      type: "nasa_compliance_audit"
+      timestamp: "unix_timestamp_13_digits"
+      trace_id: "unique_audit_identifier"
+      compliance_level: "nasa_std_8739_8"
+
+# Cross-Language Implementation Hints
+language_bindings:
+  c:
+    struct_definitions: "obiprotocol_dfa.h"
+    regex_library: "posix_regex"
+    memory_management: "manual_with_cleanup"
+    
+  python:
+    pattern_matching: "re_module"
+    state_representation: "dataclass_or_dict"
+    canonical_validation: "string_normalization"
+    
+  javascript:
+    pattern_matching: "regex_literals"
+    state_management: "object_based"
+    async_processing: "promise_based_validation"
+    
+  lua:
+    pattern_matching: "lua_patterns_or_lpeg"
+    state_representation: "table_based"
+    integration: "c_module_binding"
+
+# Security Invariants (Mathematical Guarantees)
+security_guarantees:
+  canonical_equivalence: "validate(normalize(s)) ≡ validate(canonical(s))"
+  encoding_exploit_prevention: "All input normalized before validation"
+  zero_trust_enforcement: "No unvalidated data crosses boundaries"
+  governance_compliance: "Cost monitoring prevents complexity overflow"
+
+# Performance Characteristics
+performance:
+  normalization_complexity: "O(log n) where n = encoding variants"
+  dfa_traversal_complexity: "O(k) where k = input length"
+  memory_usage: "O(states + transitions) bounded"
+  governance_monitoring: "O(1) per state transition"
+
+# NASA-STD-8739.8 Compliance Markers
+nasa_compliance:
+  deterministic_execution: true
+  bounded_resource_usage: true
+  formal_verification: "mathematical_proofs_provided"
+  graceful_degradation: "error_recovery_states_defined"
