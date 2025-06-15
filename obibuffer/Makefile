@@ -16,7 +16,7 @@ OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 LIBNAME = obibuffer.so
 STATIC_LIBNAME = obibuffer.a
 
-# External dependencies
+# External dependencies (OBINexus standard linking)
 TOPOLOGY_LIB = $(LIBDIR)/obitopology.so
 PROTOCOL_LIB = $(LIBDIR)/obiprotocol.so
 
