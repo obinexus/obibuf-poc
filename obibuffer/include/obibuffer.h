@@ -1,7 +1,7 @@
 /*
  * OBI Buffer Layer - CLI Interface Header
- * Message validation and command-line interface
  * Depends on obitopology and obiprotocol layers
+ * Provides message validation and command-line interface
  */
 
 #ifndef OBIBUFFER_H
@@ -12,11 +12,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Forward declarations
+typedef struct obi_buffer_context obi_buffer_context_t;
+
 // Buffer definitions
 #define OBI_MAX_BUFFER_SIZE 8192
-
-typedef struct obi_buffer obi_buffer_t;
-typedef struct obi_validator obi_validator_t;
 
 // Result codes
 typedef enum {
@@ -29,6 +29,8 @@ typedef enum {
 // Core API functions
 obi_buffer_result_t obi_buffer_init(obi_topology_context_t *topology_ctx);
 void obi_buffer_cleanup(void);
+obi_buffer_context_t* obi_buffer_get_context(void);
+obi_buffer_result_t obi_buffer_generate_audit(obi_buffer_context_t *ctx, const char *filename);
 
 #ifdef __cplusplus
 extern "C" {

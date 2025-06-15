@@ -2,8 +2,8 @@
 # OBINexus Computing - Aegis Framework
 
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -std=c11 -fPIC
-INCLUDES = -Iinclude
+CFLAGS = -Wall -Wextra -pedantic -std=c11 -fPIC -DNASA_STD_8739_8
+INCLUDES = -Iinclude -I../obiprotocol/include
 SRCDIR = src
 OBJDIR = obj
 LIBDIR = ../dist/lib
@@ -12,15 +12,18 @@ LIBDIR = ../dist/lib
 SOURCES = $(wildcard $(SRCDIR)/core/*.c $(SRCDIR)/utils/*.c)
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 
-# Library name
-LIBNAME = libobitopology.so
-STATIC_LIBNAME = libobitopology.a
+# Library names (OBINexus standard - NO lib prefix)
+LIBNAME = obitopology.so
+STATIC_LIBNAME = obitopology.a
+
+# External dependencies
+PROTOCOL_LIB = $(LIBDIR)/obiprotocol.so
 
 # Targets
 all: $(LIBDIR)/$(LIBNAME) $(LIBDIR)/$(STATIC_LIBNAME)
 
-$(LIBDIR)/$(LIBNAME): $(OBJECTS) | $(LIBDIR)
-	$(CC) -shared -o $@ $(OBJECTS)
+$(LIBDIR)/$(LIBNAME): $(OBJECTS) $(PROTOCOL_LIB) | $(LIBDIR)
+	$(CC) -shared -o $@ $(OBJECTS) -L$(LIBDIR) -lobiprotocol
 
 $(LIBDIR)/$(STATIC_LIBNAME): $(OBJECTS) | $(LIBDIR)
 	ar rcs $@ $(OBJECTS)
