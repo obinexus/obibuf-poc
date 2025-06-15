@@ -12,9 +12,9 @@ LIBDIR = ../dist/lib
 SOURCES = $(wildcard $(SRCDIR)/core/*.c $(SRCDIR)/utils/*.c)
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 
-# Library names (OBINexus standard - NO lib prefix)
-LIBNAME = obiprotocol.so
-STATIC_LIBNAME = obiprotocol.a
+# Library names
+LIBNAME = libobiprotocol.so
+STATIC_LIBNAME = libobiprotocol.a
 
 # Main targets
 all: $(LIBDIR)/$(LIBNAME) $(LIBDIR)/$(STATIC_LIBNAME)
@@ -69,5 +69,4 @@ debug:
 	@echo "OBJECTS: $(OBJECTS)"
 	@echo "LIBDIR: $(LIBDIR)"
 
-.PHONY: all clean dfa test-dfa install 
-debug
+.PHONY: all clean dfa test-dfa install debug
