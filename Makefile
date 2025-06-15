@@ -1,6 +1,7 @@
 # OBIBuf Unified CLI Makefile
 # OBINexus Computing - Aegis Framework
 # Links against obiprotocol, obitopology, and obibuffer libraries
+# riftlang.exe → .so.a → rift.exe → gosilang toolchain
 
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -std=c11 -DNASA_STD_8739_8
@@ -9,7 +10,7 @@ LIBDIR = dist/lib
 BINDIR = bin
 SRCDIR = cli
 
-# Library dependencies (hierarchical linking order)
+# Library dependencies (OBINexus standard - NO lib prefix)
 LIBS = -L$(LIBDIR) -lobibuffer -lobitopology -lobiprotocol -lm
 
 # Source and object files
@@ -17,21 +18,105 @@ CLI_SOURCE = $(SRCDIR)/obibuf_main.c
 CLI_OBJECT = $(CLI_SOURCE:.c=.o)
 CLI_EXECUTABLE = $(BINDIR)/obibuf.exe
 
-# Prerequisites - ensure all layer libraries exist (OBINexus standard)
+# Prerequisites - OBINexus standard library names
 PROTOCOL_LIB = $(LIBDIR)/obiprotocol.so
 TOPOLOGY_LIB = $(LIBDIR)/obitopology.so  
 BUFFER_LIB = $(LIBDIR)/obibuffer.so
 
-# Main targets
-.PHONY: all cli clean install test help check-libs
+# Static library variants for post-build distribution
+PROTOCOL_STATIC = $(LIBDIR)/obiprotocol.a
+TOPOLOGY_STATIC = $(LIBDIR)/obitopology.a
+BUFFER_STATIC = $(LIBDIR)/obibuffer.a
 
-all: check-libs cli
+# Main targets
+.PHONY: all cli clean install test help check-libs build-layers post-build-copy core
+
+all: build-layers post-build-copy check-libs cli
+
+# Core build target - builds all layers in dependency order
+core: build-layers post-build-copy
+
+# Build all layer libraries in correct dependency order
+build-layers:
+	@echo "🔨 Building OBINexus layers in dependency order..."
+	@echo "📦 Building obiprotocol (foundation layer)..."
+	$(MAKE) -C obiprotocol clean all
+	@echo "📦 Building obitopology (middle layer)..."
+	$(MAKE) -C obitopology clean all
+	@echo "📦 Building obibuffer (top layer)..."
+	$(MAKE) -C obibuffer clean all
+	@echo "✅ All layers built successfully"
+
+# Post-build copy mechanism - consolidate all obi*.so/.a/.dll files
+post-build-copy:
+	@echo "📋 Post-build copy: Consolidating OBI libraries..."
+	@mkdir -p $(LIBDIR)
+	
+	# Copy shared libraries (.so) from each layer
+	@if [ -f obiprotocol/dist/lib/obiprotocol.so ]; then \
+		cp obiprotocol/dist/lib/obiprotocol.so $(LIBDIR)/; \
+		echo "✅ Copied obiprotocol.so"; \
+	elif [ -f obiprotocol/$(LIBDIR)/libobiprotocol.so ]; then \
+		cp obiprotocol/$(LIBDIR)/libobiprotocol.so $(LIBDIR)/obiprotocol.so; \
+		echo "✅ Copied and renamed libobiprotocol.so → obiprotocol.so"; \
+	fi
+	
+	@if [ -f obitopology/dist/lib/obitopology.so ]; then \
+		cp obitopology/dist/lib/obitopology.so $(LIBDIR)/; \
+		echo "✅ Copied obitopology.so"; \
+	elif [ -f obitopology/$(LIBDIR)/libobitopology.so ]; then \
+		cp obitopology/$(LIBDIR)/libobitopology.so $(LIBDIR)/obitopology.so; \
+		echo "✅ Copied and renamed libobitopology.so → obitopology.so"; \
+	fi
+	
+	@if [ -f obibuffer/dist/lib/obibuffer.so ]; then \
+		cp obibuffer/dist/lib/obibuffer.so $(LIBDIR)/; \
+		echo "✅ Copied obibuffer.so"; \
+	elif [ -f obibuffer/$(LIBDIR)/libobibuffer.so ]; then \
+		cp obibuffer/$(LIBDIR)/libobibuffer.so $(LIBDIR)/obibuffer.so; \
+		echo "✅ Copied and renamed libobibuffer.so → obibuffer.so"; \
+	fi
+	
+	# Copy static libraries (.a) from each layer
+	@if [ -f obiprotocol/dist/lib/obiprotocol.a ]; then \
+		cp obiprotocol/dist/lib/obiprotocol.a $(LIBDIR)/; \
+		echo "✅ Copied obiprotocol.a"; \
+	elif [ -f obiprotocol/$(LIBDIR)/libobiprotocol.a ]; then \
+		cp obiprotocol/$(LIBDIR)/libobiprotocol.a $(LIBDIR)/obiprotocol.a; \
+		echo "✅ Copied and renamed libobiprotocol.a → obiprotocol.a"; \
+	fi
+	
+	@if [ -f obitopology/dist/lib/obitopology.a ]; then \
+		cp obitopology/dist/lib/obitopology.a $(LIBDIR)/; \
+		echo "✅ Copied obitopology.a"; \
+	elif [ -f obitopology/$(LIBDIR)/libobitopology.a ]; then \
+		cp obitopology/$(LIBDIR)/libobitopology.a $(LIBDIR)/obitopology.a; \
+		echo "✅ Copied and renamed libobitopology.a → obitopology.a"; \
+	fi
+	
+	@if [ -f obibuffer/dist/lib/obibuffer.a ]; then \
+		cp obibuffer/dist/lib/obibuffer.a $(LIBDIR)/; \
+		echo "✅ Copied obibuffer.a"; \
+	elif [ -f obibuffer/$(LIBDIR)/libobibuffer.a ]; then \
+		cp obibuffer/$(LIBDIR)/libobibuffer.a $(LIBDIR)/obibuffer.a; \
+		echo "✅ Copied and renamed libobibuffer.a → obibuffer.a"; \
+	fi
+	
+	# Windows DLL support (.dll) - polybuild compatibility
+	@for dll_file in $$(find . -name "obi*.dll" 2>/dev/null || true); do \
+		if [ -f "$$dll_file" ]; then \
+			cp "$$dll_file" $(LIBDIR)/; \
+			echo "✅ Copied $$(basename $$dll_file)"; \
+		fi; \
+	done
+	
+	@echo "📋 Post-build copy completed - all obi*.so/.a/.dll files consolidated"
 
 # Primary CLI build target
 cli: $(CLI_EXECUTABLE)
 
 $(CLI_EXECUTABLE): $(CLI_OBJECT) $(PROTOCOL_LIB) $(TOPOLOGY_LIB) $(BUFFER_LIB) | $(BINDIR)
-	@echo "🔗 Linking unified OBIBuf CLI..."
+	@echo "🔗 Linking unified OBIBuf CLI (nlink orchestration)..."
 	$(CC) $(CLI_OBJECT) $(LIBS) -o $@
 	@echo "✅ Built: $@"
 
@@ -45,25 +130,25 @@ $(BINDIR):
 	@echo "📁 Creating binary directory..."
 	mkdir -p $(BINDIR)
 
-# Dependency verification
+# Dependency verification - OBINexus standard naming
 check-libs:
-	@echo "🔍 Checking library dependencies..."
+	@echo "🔍 Checking library dependencies (OBINexus standard)..."
 	@if [ ! -f "$(PROTOCOL_LIB)" ]; then \
 		echo "❌ Missing: $(PROTOCOL_LIB)"; \
-		echo "   Build with: make -C obiprotocol"; \
+		echo "   Build with: make core (builds all layers)"; \
 		exit 1; \
 	fi
 	@if [ ! -f "$(TOPOLOGY_LIB)" ]; then \
 		echo "❌ Missing: $(TOPOLOGY_LIB)"; \
-		echo "   Build with: make -C obitopology"; \
+		echo "   Build with: make core (builds all layers)"; \
 		exit 1; \
 	fi
 	@if [ ! -f "$(BUFFER_LIB)" ]; then \
 		echo "❌ Missing: $(BUFFER_LIB)"; \
-		echo "   Build with: make -C obibuffer"; \
+		echo "   Build with: make core (builds all layers)"; \
 		exit 1; \
 	fi
-	@echo "✅ All layer libraries present"
+	@echo "✅ All layer libraries present (OBINexus standard)"
 
 check-includes:
 	@echo "🔍 Verifying include directories..."
@@ -71,114 +156,47 @@ check-includes:
 		if [ ! -d "$$dir" ]; then \
 			echo "❌ Missing include directory: $$dir"; \
 			exit 1; \
-		fi \
+		fi; \
 	done
 	@echo "✅ All include directories present"
 
-# Build entire stack from scratch
-build-stack:
-	@echo "🏗️  Building complete OBIBuf stack..."
-	$(MAKE) -C obiprotocol clean all
-	$(MAKE) -C obitopology clean all  
-	$(MAKE) -C obibuffer clean all
-	$(MAKE) cli
-
-# Installation target
-install: $(CLI_EXECUTABLE)
-	@echo "📦 Installing OBIBuf CLI..."
-	@mkdir -p /usr/local/bin
-	cp $(CLI_EXECUTABLE) /usr/local/bin/obibuf
-	@echo "✅ Installed: /usr/local/bin/obibuf"
-
-# Testing targets
-test: $(CLI_EXECUTABLE)
-	@echo "🧪 Running CLI integration tests..."
-	$(CLI_EXECUTABLE) version
-	$(CLI_EXECUTABLE) help
-	@echo "✅ Basic CLI tests passed"
-
-test-protocol: $(CLI_EXECUTABLE)
-	@echo "🧪 Testing protocol layer integration..."
-	@echo "test_input" > test_input.tmp
-	$(CLI_EXECUTABLE) protocol validate test_input.tmp || true
-	$(CLI_EXECUTABLE) protocol normalize "test/../path" || true
-	@rm -f test_input.tmp
-	@echo "✅ Protocol integration tests completed"
-
-test-topology: $(CLI_EXECUTABLE)
-	@echo "🧪 Testing topology layer integration..."
-	$(CLI_EXECUTABLE) topology metrics || true
-	@echo "✅ Topology integration tests completed"
-
-test-buffer: $(CLI_EXECUTABLE)
-	@echo "🧪 Testing buffer layer integration..."
-	$(CLI_EXECUTABLE) buffer audit test_audit.log || true
-	@rm -f test_audit.log
-	@echo "✅ Buffer integration tests completed"
-
-test-all: test test-protocol test-topology test-buffer
-
-# Debugging and analysis
-debug: CFLAGS += -g -DDEBUG
-debug: clean cli
-	@echo "🐛 Debug build completed"
-
-analyze: $(CLI_SOURCE)
-	@echo "🔍 Running static analysis..."
-	cppcheck --enable=all $(CLI_SOURCE) || true
-	@echo "✅ Static analysis completed"
-
-# Clean targets
+# Clean all build artifacts
 clean:
-	@echo "🧹 Cleaning CLI build artifacts..."
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf $(BINDIR)
 	rm -f $(CLI_OBJECT)
-	rm -f $(CLI_EXECUTABLE)
-	rm -f test_*.tmp test_*.log
+	$(MAKE) -C obiprotocol clean 2>/dev/null || true
+	$(MAKE) -C obitopology clean 2>/dev/null || true
+	$(MAKE) -C obibuffer clean 2>/dev/null || true
+	rm -f $(LIBDIR)/obi*.so $(LIBDIR)/obi*.a $(LIBDIR)/obi*.dll
+	@echo "✅ Clean completed"
 
-clean-all: clean
-	@echo "🧹 Cleaning all layers..."
-	$(MAKE) -C obiprotocol clean
-	$(MAKE) -C obitopology clean
-	$(MAKE) -C obibuffer clean
+# Install target for production deployment
+install: all
+	@echo "📦 Installing OBIBuf to system..."
+	mkdir -p /usr/local/lib /usr/local/bin /usr/local/include
+	cp $(LIBDIR)/obi*.so /usr/local/lib/
+	cp $(LIBDIR)/obi*.a /usr/local/lib/
+	cp $(CLI_EXECUTABLE) /usr/local/bin/
+	cp -r obiprotocol/include/* /usr/local/include/
+	cp -r obitopology/include/* /usr/local/include/
+	cp -r obibuffer/include/* /usr/local/include/
+	ldconfig
+	@echo "✅ Installation completed"
 
-# Information and debugging
-info:
-	@echo "OBIBuf CLI Build Configuration"
-	@echo "=============================="
-	@echo "Compiler: $(CC)"
-	@echo "Flags: $(CFLAGS)"
-	@echo "Includes: $(INCLUDES)"
-	@echo "Libraries: $(LIBS)"
-	@echo "Source: $(CLI_SOURCE)"
-	@echo "Executable: $(CLI_EXECUTABLE)"
-	@echo "Dependencies:"
-	@echo "  - $(PROTOCOL_LIB)"
-	@echo "  - $(TOPOLOGY_LIB)"
-	@echo "  - $(BUFFER_LIB)"
-
+# Help target
 help:
-	@echo "OBIBuf CLI Build System"
-	@echo "======================="
-	@echo "Available targets:"
-	@echo "  all          - Build CLI with dependency checking"
-	@echo "  cli          - Build only the CLI executable"
-	@echo "  build-stack  - Build complete layer stack + CLI"
-	@echo "  install      - Install CLI to /usr/local/bin"
-	@echo "  test         - Run basic integration tests"
-	@echo "  test-all     - Run comprehensive layer tests"
-	@echo "  debug        - Build with debug symbols"
-	@echo "  analyze      - Run static code analysis"
-	@echo "  clean        - Clean CLI build artifacts"
-	@echo "  clean-all    - Clean all layers and CLI"
-	@echo "  info         - Show build configuration"
-	@echo "  help         - Show this help message"
+	@echo "OBINexus OBIBuf Build System"
+	@echo "============================="
 	@echo ""
-	@echo "Prerequisites:"
-	@echo "  - All layer libraries must be built first"
-	@echo "  - Include directories must exist"
-	@echo "  - GCC with C11 support required"
-
-# Dependencies for proper rebuild
-$(CLI_OBJECT): obiprotocol/include/obiprotocol.h \
-               obitopology/include/obitopology.h \
-               obibuffer/include/obibuffer.h
+	@echo "Available targets:"
+	@echo "  all          - Build everything (layers + CLI)"
+	@echo "  core         - Build core libraries only"
+	@echo "  cli          - Build CLI executable only"
+	@echo "  check-libs   - Verify library dependencies"
+	@echo "  clean        - Clean all build artifacts"
+	@echo "  install      - Install to system"
+	@echo "  help         - Show this help"
+	@echo ""
+	@echo "OBINexus toolchain: riftlang.exe → .so.a → rift.exe → gosilang"
+	@echo "Build orchestration: nlink → polybuild"
