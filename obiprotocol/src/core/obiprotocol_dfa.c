@@ -242,7 +242,7 @@ bool obi_validate_canonical_equivalence(const char *input1,
 int obi_dfa_register_pattern(obi_protocol_dfa_t *dfa, 
                             obi_semantic_pattern_t pattern_type,
                             const char *regex_pattern,
-                           bool (*__attribute__((unused)) validator)(const char *, size_t)) {
+                            bool (*)(const char *, size_t)) {
     if (!dfa || !regex_pattern || dfa->state_count >= OBI_MAX_STATES) return -1;
     
     uint32_t state_id = dfa->state_count;
